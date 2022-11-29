@@ -1,0 +1,3 @@
+I like Go.
+This is test file.
+End.

@@ -1,0 +1,60 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"net"
+	"strings"
+	"time"
+)
+
+func main() {
+	listener, err := net.Listen("tcp", "localhost:8000")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+
+		go handleConn(conn)
+	}
+}
+
+func echo(c net.Conn, shout string, delay time.Duration) {
+	fmt.Fprintln(c, "\t", strings.ToUpper(shout))
+	time.Sleep(delay)
+	fmt.Fprintln(c, "\t", shout)
+	time.Sleep(delay)
+	fmt.Fprintln(c, "\t", strings.ToLower(shout))
+}
+
+func handleConn(c net.Conn) {
+	input := bufio.NewScanner(c)
+
+	shout := make(chan string)
+	go func() {
+		for input.Scan() {
+			text := input.Text()
+			shout <- text
+			go echo(c, text, 1*time.Second)
+		}
+	}()
+
+	go func(c net.Conn) {
+		for {
+			select {
+			case <-time.After(10 * time.Second):
+				fmt.Println("10 seconds passed!")
+				c.Close()
+			case <-shout:
+				return
+			}
+		}
+	}(c)
+}
